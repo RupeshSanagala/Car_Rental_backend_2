@@ -10,6 +10,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Car_Rental_Backend_Application.Data.RequestDto_s;
 using Car_Rental_Backend_Application.Data.ResponseDto_s;
+using Org.BouncyCastle.Crypto.Generators;
 
 namespace Car_Rental_Backend_Application.Controllers
 {
@@ -160,6 +161,70 @@ namespace Car_Rental_Backend_Application.Controllers
                 return Unauthorized("Invalid credentials.");
 
             return Ok($"Welcome, {user.Username}! Login successful.");
+        }
+
+        [HttpPost("forgot-password/{userId}")]
+        public async Task<IActionResult> ForgotPassword([FromRoute] int userId)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == userId);
+            if (user == null)
+                return NotFound($"User with ID {userId} does not exist.");
+
+            if (string.IsNullOrEmpty(user.Email))
+                return BadRequest("User does not have a registered email.");
+
+            // ✅ Generate a 6-digit OTP
+            var otp = new Random().Next(100000, 999999).ToString();
+
+            //// ✅ Hash the OTP before storing it (for security)
+            //user.OTP = BCrypt.Net.BCrypt.HashPassword(otp);
+            user.OTP = otp;
+            user.ResetTokenExpiry = DateTime.UtcNow.AddMinutes(10); // OTP valid for 10 minutes
+
+            await _context.SaveChangesAsync();
+
+            // ✅ Send OTP via email
+            string subject = "Password Reset OTP";
+            string body = $"<h3>Hello {user.Username},</h3><p>Your OTP for password reset is: <strong>{otp}</strong></p><p>This OTP is valid for 10 minutes.</p>";
+
+            await _emailService.SendEmailAsync(user.Email, subject, body);
+
+            return Ok($"Password reset OTP has been sent to {user.Email}.");
+        }
+
+
+
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequestDto requestDto)
+        {
+            if (string.IsNullOrEmpty(requestDto.OTP) || string.IsNullOrEmpty(requestDto.NewPassword))
+                return BadRequest("Token and new password are required.");
+
+
+            // ✅ Find user with matching OTP and check expiry
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.OTP == requestDto.OTP && u.ResetTokenExpiry > DateTime.UtcNow);
+            if (user == null)
+                return BadRequest("Invalid or expired OTP.");
+
+            // ✅ Validate Strong Password
+            if (!StrongPassword(requestDto.NewPassword))
+                return BadRequest("Password must contain at least one uppercase, one lowercase, one numeric, one special character, and be at least 8 characters long.");
+
+            // ✅ Hash the new password before storing it
+            user.Password = requestDto.NewPassword;
+
+            // ✅ Clear OTP after successful password reset
+            user.OTP = null;
+            user.ResetTokenExpiry = null;
+            await _context.SaveChangesAsync();
+
+            // ✅ Send Success Notification Email
+            string subject = "Password Successfully Changed";
+            string body = $"<h3>Hello {user.Username},</h3><p>Your password has been successfully changed.</p><p>If you did not request this change, please contact our support team immediately.</p>";
+
+            await _emailService.SendEmailAsync(user.Email, subject, body);
+
+            return Ok("Password has been successfully reset.");
         }
 
 

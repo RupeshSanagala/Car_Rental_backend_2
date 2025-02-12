@@ -26,7 +26,8 @@ namespace Car_Rental_Backend_Application.Data.Entities
 
         public string Role { get; set; } = "User";
 
-
+        public string? OTP { get; set; }
+        public DateTime? ResetTokenExpiry { get; set; }
         public ICollection<Booking> Bookings { get; set; } = new List<Booking>();
     }
 }
