@@ -10,9 +10,12 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 
 builder.Services.AddControllers();
-builder.Services.AddDbContext<CarRentalContext>(options => options.UseSqlServer(
-    builder.Configuration.GetConnectionString("DbConnection"))
-    );
+builder.Services.AddDbContext<CarRentalContext>(options =>
+    options.UseMySql(
+        builder.Configuration.GetConnectionString("DbConnection"),
+        new MySqlServerVersion(new Version(8, 0, 40)) // Use the correct MySQL version
+    )
+);
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
