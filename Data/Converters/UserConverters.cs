@@ -32,7 +32,7 @@ namespace Car_Rental_Backend_Application.Data.Converters
                 Role = user.Role,
                 Address = user.Address,
                 Phone_Number = user.PhoneNumber,
-                BookingIds = user.Bookings?.Select(b => b.BookingId).ToList() ?? new List<int>() 
+                //BookingIds = user.Bookings?.Select(b => b.BookingId).ToList() ?? new List<int>() 
             };
         }
 

@@ -14,11 +14,13 @@ namespace Car_Rental_Backend_Application.Data.RequestDto_s
         [Required]
         public int Year { get; set; }
 
+        public int PricePerDay { get; set; }
+
         [Required]
         public string License_Plate { get; set; }
 
-        [Required]
-        public string Availability_Status { get; set; }
+        //[Required]
+        //public string Availability_Status { get; set; }
 
         
     }

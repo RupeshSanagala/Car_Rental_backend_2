@@ -28,7 +28,7 @@ namespace Car_Rental_Backend_Application.Data.Converters
                 PickupDate = booking.PickupDate,
                 ReturnDate = booking.ReturnDate,
                 TotalPrice = booking.TotalPrice,
-                CancellationIds = booking.Cancellations?.Select(c => c.Cancellation_ID).ToList() ?? new List<int>()
+                //CancellationIds = booking.Cancellations?.Select(c => c.Cancellation_ID).ToList() ?? new List<int>()
             };
         }
 
@@ -45,7 +45,7 @@ namespace Car_Rental_Backend_Application.Data.Converters
                 BookingDate = bookingRequestDto.BookingDate,
                 PickupDate = bookingRequestDto.PickupDate,
                 ReturnDate = bookingRequestDto.ReturnDate,
-                TotalPrice = bookingRequestDto.TotalPrice
+             
             };
         }
     }

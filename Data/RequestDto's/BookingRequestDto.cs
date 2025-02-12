@@ -20,8 +20,8 @@ namespace Car_Rental_Backend_Application.Data.RequestDto_s
         [Required]
         public DateTime ReturnDate { get; set; }
 
-        [Required]
-        [Range(0, double.MaxValue, ErrorMessage = "Total Price must be positive.")]
-        public decimal TotalPrice { get; set; }
+        //[Required]
+        //[Range(0, double.MaxValue, ErrorMessage = "Total Price must be positive.")]
+        //public decimal TotalPrice { get; set; }
     }
 }

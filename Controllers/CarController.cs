@@ -3,6 +3,7 @@ using Car_Rental_Backend_Application.Data.Converters;
 using Car_Rental_Backend_Application.Data.ENUMS;
 using Car_Rental_Backend_Application.Data.RequestDto_s;
 using Car_Rental_Backend_Application.Data.ResponseDto_s;
+using Car_Rental_Backend_Application.Exceptions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
@@ -49,14 +50,24 @@ namespace Car_Rental_Backend_Application.Controllers
             return Ok(CarConverters.CarToCarResponseDto(car));
         }
 
-        // POST: api/car
         [HttpPost]
         public async Task<ActionResult<CarResponseDto>> CreateCar(CarRequestDto carRequestDto)
         {
             if (carRequestDto == null)
                 return BadRequest("Car data is required.");
 
+            // 🔹 Convert DTO to Car entity first
             var car = CarConverters.CarRequestDtoToCar(carRequestDto);
+
+            // 🔹 Check if a car with the same Licence_Plate already exists
+            bool isLicencePlateExists = await _context.Cars
+                .AnyAsync(c => c.License_Plate == car.License_Plate);
+
+            if (isLicencePlateExists)
+            {
+                throw new CarAlreadyExistedException($"The Car with the Licence_Plate{car.License_Plate} is Already Exists");
+            }
+
             _context.Cars.Add(car);
             await _context.SaveChangesAsync();
 
@@ -64,6 +75,8 @@ namespace Car_Rental_Backend_Application.Controllers
 
             return CreatedAtAction(nameof(GetCarById), new { id = createdCarResponseDto.Car_ID }, createdCarResponseDto);
         }
+
+
 
         // PUT: api/car/{id}
         [HttpPut("{id}")]
@@ -78,7 +91,7 @@ namespace Car_Rental_Backend_Application.Controllers
             car.Model = carRequestDto.Model;
             car.Year = carRequestDto.Year;
             car.License_Plate = carRequestDto.License_Plate;
-            car.Availability_Status = carRequestDto.Availability_Status;
+            //car.Availability_Status = carRequestDto.Availability_Status;
 
 
             await _context.SaveChangesAsync();

@@ -27,6 +27,10 @@ namespace Car_Rental_Backend_Application.Data
                 .HasIndex(u => u.Email)
                 .IsUnique();
 
+            modelBuilder.Entity<Car>()
+               .HasIndex(u => u.License_Plate)
+               .IsUnique();
+
             modelBuilder.Entity<Booking>()
                 .HasOne(b => b.User)
                 .WithMany(u => u.Bookings)

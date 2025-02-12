@@ -19,6 +19,7 @@ namespace Car_Rental_Backend_Application.Data.Converters
                 Brand = car.Brand,
                 Model = car.Model,
                 Year = car.Year,
+                PricePerDay=car.PricePerDay,
                 License_Plate = car.License_Plate,
                 Availability_Status = car.Availability_Status.ToString(),
                 BookingIds = car.Bookings?.Select(b => b.BookingId).ToList(),
@@ -33,18 +34,19 @@ namespace Car_Rental_Backend_Application.Data.Converters
                 throw new ArgumentNullException(nameof(carRequestDto));
 
            
-            if (!Enum.IsDefined(typeof(AvailabilityStatus), carRequestDto.Availability_Status))
-            {
-                throw new ArgumentException($"Invalid Availability Status value: {carRequestDto.Availability_Status}");
-            }
+            //if (!Enum.IsDefined(typeof(AvailabilityStatus), carRequestDto.Availability_Status))
+            //{
+            //    throw new ArgumentException($"Invalid Availability Status value: {carRequestDto.Availability_Status}");
+            //}
 
             var car = new Car
             {
                 Brand = carRequestDto.Brand,
                 Model = carRequestDto.Model,
                 Year = carRequestDto.Year,
+                PricePerDay=carRequestDto.PricePerDay,
                 License_Plate = carRequestDto.License_Plate,
-                Availability_Status = carRequestDto.Availability_Status, 
+                //Availability_Status = carRequestDto.Availability_Status, 
             };
 
             return car;

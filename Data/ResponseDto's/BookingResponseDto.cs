@@ -19,6 +19,6 @@
         public decimal TotalPrice { get; set; }
 
        
-        public List<int> CancellationIds { get; set; }
+        //public List<int> CancellationIds { get; set; }
     }
 }

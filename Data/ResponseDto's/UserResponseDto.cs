@@ -9,6 +9,6 @@
         public string Phone_Number { get; set; }
 
         public string Role { get; set; }
-        public List<int> BookingIds { get; set; } = new List<int>();
+        //public List<int> BookingIds { get; set; } = new List<int>();
     }
 }

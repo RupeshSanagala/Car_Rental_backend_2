@@ -1,7 +1,9 @@
 ﻿using Car_Rental_Backend_Application.Data;
 using Car_Rental_Backend_Application.Data.Converters;
+using Car_Rental_Backend_Application.Data.Entities;
 using Car_Rental_Backend_Application.Data.RequestDto_s;
 using Car_Rental_Backend_Application.Data.ResponseDto_s;
+//using Car_Rental_Backend_Application.NewFolder;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -30,6 +32,8 @@ public class BookingController : ControllerBase
 
         try
         {
+            using var transaction = await _context.Database.BeginTransactionAsync();
+
             var user = await _context.Users
                 .Include(u => u.Bookings)
                 .FirstOrDefaultAsync(u => u.UserId == bookingRequestDto.User_ID);
@@ -37,24 +41,71 @@ public class BookingController : ControllerBase
             if (user == null)
                 return NotFound("User not found.");
 
-            var car = await _context.Cars.FindAsync(bookingRequestDto.Car_ID);
+            var car = await _context.Cars
+                .Include(c => c.Bookings)
+                .FirstOrDefaultAsync(c => c.Car_ID == bookingRequestDto.Car_ID);
+
             if (car == null)
                 return NotFound("Car not found.");
 
             if (car.Availability_Status == "Booked")
                 return BadRequest("Car is currently rented and not available for booking.");
 
-            // Convert DTO to Booking entity
-            var booking = BookingConverters.BookingRequestDtoToBooking(bookingRequestDto);
-            booking.User = user;  // Directly associate user
-            booking.Car = car;    // Directly associate car
+            bool isCarBooked = await _context.Bookings.AnyAsync(b =>
+                b.Car_ID == bookingRequestDto.Car_ID &&
+                (b.PickupDate <= bookingRequestDto.ReturnDate && b.ReturnDate >= bookingRequestDto.PickupDate));
+
+            if (isCarBooked)
+                return BadRequest("Car is already booked for the selected dates.");
+
+            if (bookingRequestDto.PickupDate >= bookingRequestDto.ReturnDate)
+                return BadRequest("Invalid booking dates.");
+
+            var totalDays = (bookingRequestDto.ReturnDate - bookingRequestDto.PickupDate).Days;
+            var totalPrice = totalDays * car.PricePerDay;
+
+            var booking = new Booking
+            {
+                User_ID = bookingRequestDto.User_ID,
+                Car_ID = bookingRequestDto.Car_ID,
+                BookingDate = bookingRequestDto.BookingDate,
+                PickupDate = bookingRequestDto.PickupDate,
+                ReturnDate = bookingRequestDto.ReturnDate,
+                TotalPrice = totalPrice,
+                User = user,
+                Car = car
+            };
 
             _context.Bookings.Add(booking);
+            await _context.SaveChangesAsync();
 
+            user.Bookings.Add(booking);
+            _context.Users.Update(user);
+
+            car.Bookings.Add(booking);
             car.Availability_Status = "Booked";
             _context.Cars.Update(car);
 
             await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            // ✅ Send Booking Confirmation Email
+            string emailSubject = "Booking Confirmation - Car Rental";
+            string emailBody = $@"
+        <h2>Dear {user.Username},</h2>
+        <p>Your booking has been successfully confirmed.</p>
+        <h3>Booking Details:</h3>
+        <ul>
+            <li><strong>Booking ID:</strong> {booking.BookingId}</li>
+            <li><strong>Car Model:</strong> {car.Model}</li>
+            <li><strong>Pickup Date:</strong> {booking.PickupDate:yyyy-MM-dd}</li>
+            <li><strong>Return Date:</strong> {booking.ReturnDate:yyyy-MM-dd}</li>
+            <li><strong>Total Price:</strong> ${booking.TotalPrice}</li>
+        </ul>
+        <p>Thank you for choosing our service!</p>
+        <p>Best Regards, <br/>Car Rental Team</p>";
+
+            await _emailService.SendEmailAsync(user.Email, emailSubject, emailBody);
 
             return CreatedAtAction(nameof(GetBookingById), new { id = booking.BookingId },
                 BookingConverters.BookingToBookingResponseDto(booking));
@@ -64,6 +115,7 @@ public class BookingController : ControllerBase
             return StatusCode(500, $"Internal server error: {ex.Message}");
         }
     }
+
 
 
     [HttpGet]
@@ -97,24 +149,50 @@ public class BookingController : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateBooking(int id, BookingRequestDto bookingRequestDto)
     {
-        var booking = await _context.Bookings.FindAsync(id);
+        var booking = await _context.Bookings
+            .Include(b => b.Car)
+            .FirstOrDefaultAsync(b => b.BookingId == id);
+
         if (booking == null)
             return NotFound($"Booking with ID {id} not found.");
 
+        // 🔹 Validate Booking Dates
+        if (bookingRequestDto.PickupDate >= bookingRequestDto.ReturnDate)
+            return BadRequest("Invalid booking dates.");
+
+        // 🔹 Check for overlapping bookings
+        bool isCarBooked = await _context.Bookings.AnyAsync(b =>
+            b.Car_ID == booking.Car_ID &&
+            b.BookingId != id && // Exclude current booking
+            (b.PickupDate <= bookingRequestDto.ReturnDate && b.ReturnDate >= bookingRequestDto.PickupDate)
+        );
+
+        if (isCarBooked)
+            return BadRequest("Car is already booked for the selected dates.");
+
+        // 🔹 Recalculate Total Price
+        var totalDays = (bookingRequestDto.ReturnDate - bookingRequestDto.PickupDate).Days;
+        if (totalDays <= 0)
+            return BadRequest("Booking duration must be at least one day.");
+
+        var totalPrice = totalDays * booking.Car.PricePerDay;
+
+        // 🔹 Update Booking Details
         booking.PickupDate = bookingRequestDto.PickupDate;
         booking.ReturnDate = bookingRequestDto.ReturnDate;
-        booking.TotalPrice = bookingRequestDto.TotalPrice;
+        booking.TotalPrice = totalPrice;
 
         try
         {
             await _context.SaveChangesAsync();
-            return NoContent();
+            return Ok($"Booking {id} updated successfully.");
         }
         catch (DbUpdateConcurrencyException)
         {
             return StatusCode(500, "Database concurrency issue. Please try again.");
         }
     }
+
 
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteBooking(int id)
@@ -130,26 +208,21 @@ public class BookingController : ControllerBase
     [HttpGet("user/{userId}")]
     public async Task<ActionResult<IEnumerable<BookingResponseDto>>> GetBookingsByUserId(int userId)
     {
-        // Fetch the user to ensure they exist
         var user = await _context.Users
             .Include(u => u.Bookings)
+            .ThenInclude(b => b.Car) // ✅ Include Car details
             .FirstOrDefaultAsync(u => u.UserId == userId);
 
         if (user == null)
             return NotFound($"User with ID {userId} not found.");
 
-        // Fetch bookings for the user
-        var bookings = await _context.Bookings
-            .Where(b => b.User_ID == userId)
-            .Include(b => b.User)
-            .Include(b => b.Car)
-            .ToListAsync();
+        if (!user.Bookings.Any())
+            return NotFound($"No bookings found for User ID {userId}.");
 
-        if (!bookings.Any())
-            return NotFound($"No bookings found for user with ID {userId}.");
+        // ✅ Convert Bookings to Response DTOs
+        var bookingsDto = user.Bookings.Select(BookingConverters.BookingToBookingResponseDto);
 
-        // Return the bookings as a list of BookingResponseDto
-        return Ok(bookings.Select(BookingConverters.BookingToBookingResponseDto));
+        return Ok(bookingsDto);
     }
 
 }

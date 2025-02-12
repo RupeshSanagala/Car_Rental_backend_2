@@ -17,11 +17,13 @@ namespace Car_Rental_Backend_Application.Data.Entities
         [Required]
         public int Year { get; set; }
 
+        public int PricePerDay { get; set; }
+
         [Required]
         public string License_Plate { get; set; }
 
         [Required]
-        public string Availability_Status { get; set; } 
+        public string Availability_Status { get; set; } = "Available";
 
       
         public ICollection<Booking> Bookings { get; set; } = new List<Booking>();

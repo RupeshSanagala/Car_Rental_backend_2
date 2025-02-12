@@ -4,6 +4,7 @@ using Car_Rental_Backend_Application.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Car_Rental_Backend_Application.Migrations
 {
     [DbContext(typeof(CarRentalContext))]
-    partial class CarRentalContextModelSnapshot : ModelSnapshot
+    [Migration("20250212042844_UopdatedCarsWithPricePerDay")]
+    partial class UopdatedCarsWithPricePerDay
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -158,7 +161,7 @@ namespace Car_Rental_Backend_Application.Migrations
 
                     b.Property<string>("License_Plate")
                         .IsRequired()
-                        .HasColumnType("nvarchar(450)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Model")
                         .IsRequired()
@@ -171,9 +174,6 @@ namespace Car_Rental_Backend_Application.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Car_ID");
-
-                    b.HasIndex("License_Plate")
-                        .IsUnique();
 
                     b.ToTable("Cars");
                 });
